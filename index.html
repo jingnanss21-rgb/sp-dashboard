@@ -280,38 +280,74 @@ function actEndStatus(endDate){
   return{cls:'',label:'剩'+d+'天'};
 }
 
-// localStorage feedback (品牌明细+活动诊断共用)
+// localStorage feedback (品牌明细+活动诊断共用) — 多条追加模式
 const FK='sp_dashboard_feedback';
-function getFB(){try{return JSON.parse(localStorage.getItem(FK)||'{}')}catch{return{}}}
-function saveFB(bid,t){const f=getFB();if(!t&&t!==''){delete f[bid];}else{f[bid]={text:t,time:new Date().toLocaleString()};}localStorage.setItem(FK,JSON.stringify(f));}
+function getFB(){try{const raw=JSON.parse(localStorage.getItem(FK)||'{}');
+  // 兼容旧格式: {bid:{text,time}} → {bid:[{text,date}]}
+  const out={};for(const[k,v] of Object.entries(raw)){
+    if(Array.isArray(v)){out[k]=v;}
+    else if(v&&v.text){out[k]=[{text:v.text,date:v.time||_fbDate()}];}
+  }return out;}catch{return{}}}
+function _fbDate(){const d=new Date();return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;}
+function _saveFBStore(store){localStorage.setItem(FK,JSON.stringify(store));}
+function addFBEntry(bid,text){const f=getFB();if(!f[bid])f[bid]=[];f[bid].unshift({text,date:_fbDate()});_saveFBStore(f);}
+function delFBEntry(bid,idx){const f=getFB();if(f[bid]){f[bid].splice(idx,1);if(!f[bid].length)delete f[bid];}_saveFBStore(f);}
+function _esc(s){return s.replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;');}
+function _isThisWeek(dateStr){
+  // dateStr like "03/30", check if it falls in current Mon-Sun week
+  const now=new Date();const day=now.getDay()||7;
+  const mon=new Date(now);mon.setDate(now.getDate()-(day-1));mon.setHours(0,0,0,0);
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);sun.setHours(23,59,59,999);
+  const parts=dateStr.split('/');if(parts.length!==2)return false;
+  const m=parseInt(parts[0])-1,d=parseInt(parts[1]);
+  const check=new Date(now.getFullYear(),m,d);
+  return check>=mon&&check<=sun;
+}
 function renderFBCell(bid, source) {
-  const fb = getFB()[bid];
-  const hasFB = fb && fb.text;
-  const escaped = hasFB ? fb.text.replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;') : '';
-  const timeStr = hasFB ? `<div style="font-size:9px;color:#aaa;margin-top:2px;">${fb.time}</div>` : '';
-  return `<td style="min-width:140px;max-width:220px;text-align:left;vertical-align:top;position:relative;">
-    <div style="cursor:pointer;min-height:28px;padding:4px 6px;border-radius:4px;border:1px dashed ${hasFB?'var(--primary)':'#ddd'};background:${hasFB?'rgba(37,99,235,0.03)':'transparent'};transition:all .15s;" onclick="editFB(${bid},'${source}')" title="点击编辑反馈">
-      ${hasFB ? `<div style="font-size:11px;line-height:1.4;word-break:break-all;">${escaped}</div>${timeStr}` : '<span style="font-size:11px;color:#ccc;">点击添加反馈</span>'}
-    </div>
-    ${hasFB ? `<span onclick="event.stopPropagation();clearFB(${bid},'${source}')" style="position:absolute;top:2px;right:4px;cursor:pointer;font-size:10px;color:#ccc;opacity:0.6;" title="清除反馈">✕</span>` : ''}
-  </td>`;
+  const entries = (getFB()[bid]||[]);
+  const hasEntries = entries.length > 0;
+  const hasThisWeek = entries.some(e=>_isThisWeek(e.date));
+  if(!hasEntries){
+    return `<td style="min-width:160px;max-width:240px;text-align:left;vertical-align:top;">
+      <div style="cursor:pointer;min-height:28px;padding:4px 6px;border-radius:4px;border:1px dashed #ddd;transition:all .15s;" onclick="addFB(${bid},'${source}')" title="添加跟进反馈">
+        <span style="font-size:11px;color:#ccc;">+ 添加反馈</span>
+      </div></td>`;
+  }
+  let html = entries.map((e,i)=>{
+    const isNew = _isThisWeek(e.date);
+    return `<div style="position:relative;padding:3px 16px 3px 0;${i>0?'border-top:1px solid #f0f0f0;margin-top:3px;':''}">
+      <span style="font-size:9px;color:${isNew?'var(--primary)':'#aaa'};font-weight:${isNew?'600':'normal'};margin-right:3px;">${e.date}</span>
+      <span style="font-size:11px;line-height:1.3;word-break:break-all;">${_esc(e.text)}</span>
+      <span onclick="event.stopPropagation();delFBOne(${bid},${i},'${source}')" style="position:absolute;top:2px;right:1px;cursor:pointer;font-size:9px;color:#ccc;opacity:0.5;line-height:1;" title="删除此条">✕</span>
+    </div>`;
+  }).join('');
+  const borderColor = hasThisWeek ? 'var(--primary)' : '#e2e8f0';
+  const bgColor = hasThisWeek ? 'rgba(37,99,235,0.03)' : 'rgba(0,0,0,0.01)';
+  return `<td style="min-width:160px;max-width:240px;text-align:left;vertical-align:top;">
+    <div style="padding:4px 6px;border-radius:4px;border:1px solid ${borderColor};background:${bgColor};transition:all .15s;">
+      ${html}
+      <div style="cursor:pointer;margin-top:3px;padding-top:3px;border-top:1px dashed #e2e8f0;" onclick="addFB(${bid},'${source}')">
+        <span style="font-size:10px;color:var(--primary);opacity:0.7;">+ 追加</span>
+      </div>
+    </div></td>`;
 }
-function editFB(bid, source) {
-  const fb = getFB()[bid];
-  const t = prompt('添加/编辑跟进反馈:', fb?.text || '');
-  if(t !== null) {
-    saveFB(bid, t);
+function addFB(bid, source) {
+  const t = prompt('输入跟进反馈（自动记录今天日期）:');
+  if(t !== null && t.trim()) {
+    addFBEntry(bid, t.trim());
     if(source === 'bl') renderBLTable();
     else if(source === 'p3') renderP3Content();
   }
 }
-function clearFB(bid, source) {
-  if(confirm('确认清除此反馈?')) {
-    saveFB(bid, '');
+function delFBOne(bid, idx, source) {
+  if(confirm('删除此条反馈?')) {
+    delFBEntry(bid, idx);
     if(source === 'bl') renderBLTable();
     else if(source === 'p3') renderP3Content();
   }
 }
+// 导出用: 所有条目合并为文本
+function getFBText(bid){return(getFB()[bid]||[]).map(e=>`[${e.date}]${e.text}`).join('; ');}
 
 // CSV export
 function exportCSV(headers, rows, filename) {
@@ -1791,7 +1827,7 @@ const P3_COLS = [
   {key:'oldCustRate',label:'老客曝光核销率',group:'老客指标',sortable:true,render:(b)=>`<td>${pct(b.oldCustRate)}</td>`},
   // 活动
   {key:'_acts',label:'活动',group:'',render:(b)=>{const acts=b.activities||[];const actLen=acts.length;if(actLen===0)return'<td>-</td>';let ex=0;acts.forEach(a=>{if(actEndStatus(a.endDate).cls)ex++;});const wb=ex>0?` <span style="color:var(--danger);font-size:9px;">⚠️${ex}</span>`:'';const isExp=p3Expanded[b.brandId];return`<td><span class="expand-btn" onclick="toggleP3Act(${b.brandId})">${isExp?'🔽':'▶'} ${actLen}${wb}</span></td>`;}},
-  {key:'_feedback',label:'跟进反馈 💬<br><span style=\"font-size:9px;color:var(--text-secondary);font-weight:normal;\">0330-0403</span>',group:'',sortable:true,render:(b)=>renderFBCell(b.brandId,'p3')},
+  {key:'_feedback',label:'跟进反馈 💬<br><span style=\"font-size:9px;color:var(--text-secondary);font-weight:normal;\">本周新增高亮</span>',group:'',sortable:true,render:(b)=>renderFBCell(b.brandId,'p3')},
 ];
 
 function renderP3Table(){
@@ -1802,7 +1838,7 @@ function renderP3Table(){
   let filtered=getP3Filtered();
   filtered=[...filtered].sort((a,b)=>{
     let va=a[p3Sort.field],vb=b[p3Sort.field];
-    if(p3Sort.field==='_feedback'){const fb=getFB();va=fb[a.brandId]?1:0;vb=fb[b.brandId]?1:0;}
+    if(p3Sort.field==='_feedback'){const fb=getFB();va=(fb[a.brandId]||[]).some(e=>_isThisWeek(e.date))?2:(fb[a.brandId]||[]).length?1:0;vb=(fb[b.brandId]||[]).some(e=>_isThisWeek(e.date))?2:(fb[b.brandId]||[]).length?1:0;}
     if(typeof va==='string'){return p3Sort.dir==='asc'?(va||'').localeCompare(vb||''):(vb||'').localeCompare(va||'');}
     return p3Sort.dir==='asc'?(va||0)-(vb||0):(vb||0)-(va||0);
   });
@@ -2053,7 +2089,7 @@ function exportP3(){
     oldCustLq:{h:'老客日均领取',v:b=>b.oldCustLq||0},
     oldCustWrt:{h:'老客日均核销',v:b=>b.oldCustWrt||0},
     oldCustRate:{h:'老客曝光核销率',v:b=>fmtP(b.oldCustRate)},
-    _feedback:{h:'跟进反馈',v:b=>{const fb=getFB()[b.brandId];return fb?.text||'';}},
+    _feedback:{h:'跟进反馈',v:b=>getFBText(b.brandId)},
   };
   
   // 按选中列导出（始终包含品牌ID）
@@ -2398,7 +2434,7 @@ function getBLFiltered() {
     else if(blSort.field === '_sp') { va = getSpDisplay(a); vb = getSpDisplay(b); }
     else if(blSort.field === '_owner') { va = getOwnerDisplay(a); vb = getOwnerDisplay(b); }
     else if(blSort.field === '_hasNotes') { va = _noteWeight(a.notes); vb = _noteWeight(b.notes); }
-    else if(blSort.field === '_hasFB') { const fb=getFB(); va = fb[a.brandId]?1:0; vb = fb[b.brandId]?1:0; }
+    else if(blSort.field === '_hasFB') { const fb=getFB(); va = (fb[a.brandId]||[]).some(e=>_isThisWeek(e.date))?2:(fb[a.brandId]||[]).length?1:0; vb = (fb[b.brandId]||[]).some(e=>_isThisWeek(e.date))?2:(fb[b.brandId]||[]).length?1:0; }
     else { va = a[blSort.field]; vb = b[blSort.field]; }
     if(typeof va === 'string') { va = va || ''; vb = vb || ''; return blSort.dir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va); }
     return blSort.dir==='asc' ? (va||0)-(vb||0) : (vb||0)-(va||0);
@@ -2438,7 +2474,7 @@ function renderBLTable() {
       备注
       <span id="noteFilterBtn" onclick="event.stopPropagation();toggleNoteFilter(event)" style="cursor:pointer;margin-left:4px;font-size:12px;opacity:${blFilter.noteTypes.length?'1':'.6'};${blFilter.noteTypes.length?'color:var(--primary);':''}">🔽${blFilter.noteTypes.length?blFilter.noteTypes.length:''}</span>
     </th>
-    <th class="sortable" onclick="sortBL('_hasFB')" style="min-width:140px;">跟进反馈 💬<br><span style="font-size:9px;color:var(--text-secondary);font-weight:normal;">0330-0403</span></th>
+    <th class="sortable" onclick="sortBL('_hasFB')" style="min-width:160px;">跟进反馈 💬<br><span style="font-size:9px;color:var(--text-secondary);font-weight:normal;">本周新增高亮</span></th>
   </tr></thead><tbody>`;
   
   function blMoney(v) { if(!v || v<=0) return '<span style="color:#ccc">-</span>'; const w=v/10000; return '¥'+(w>=0.1?w.toFixed(1)+'w':v.toFixed(0)); }
@@ -2577,7 +2613,6 @@ function sortBL(f) {
 function exportBL() {
   const rows = getBLFiltered();
   const headers = ['品牌ID','品牌名','业态','状态','投放服务商','制券服务商','负责人','分层','门店数','是否存活','活动数','活动创建','活动到期','3月返佣(预估)','2月返佣(实际)','1月返佣(实际)','备注','跟进反馈'];
-  const fbAll = getFB();
   const data = rows.map(b => [
     b.brandId,
     b.name || '',
@@ -2596,7 +2631,7 @@ function exportBL() {
     b.m2Commission || 0,
     b.m1Commission || 0,
     (b.notes || []).map(n => typeof n === 'string' ? n : n.text).join('; '),
-    fbAll[b.brandId]?.text || '',
+    getFBText(b.brandId),
   ]);
   exportCSV(headers, data, '品牌明细_' + new Date().toISOString().slice(0,10) + '.csv');
 }
