@@ -228,7 +228,7 @@ async function authCheck(){
   const pwd=document.getElementById('authPwd').value;
   const hash=await _sha256(pwd);
   if(hash==='98d80342ef162b964745f9c124df287ff224488b43eb648b6c368612598c60e9'){
-    sessionStorage.setItem('sp_dash_auth','1');
+    localStorage.setItem('sp_dash_auth',String(Date.now()+7*24*60*60*1000));
     document.getElementById('authOverlay').style.display='none';
   } else {
     document.getElementById('authErr').textContent='密码错误，请重试';
@@ -236,10 +236,8 @@ async function authCheck(){
     document.getElementById('authPwd').focus();
   }
 }
-// 如果本次会话已验证过，直接跳过
-if(sessionStorage.getItem('sp_dash_auth')==='1'){
-  document.getElementById('authOverlay').style.display='none';
-}
+// 7天内免密
+(function(){const exp=localStorage.getItem('sp_dash_auth');if(exp&&Date.now()<Number(exp)){document.getElementById('authOverlay').style.display='none';}else{localStorage.removeItem('sp_dash_auth');}})();
 // 自动聚焦
 setTimeout(()=>{if(document.getElementById('authOverlay').style.display!=='none')document.getElementById('authPwd').focus();},100);
 </script>
