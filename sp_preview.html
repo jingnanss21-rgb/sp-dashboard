@@ -937,14 +937,14 @@ function rsop(){
           <div style="flex:1;min-width:0;padding:20px 22px;background:#fff7ed;border-radius:0 0 0 10px;border-right:1.5px dashed var(--x3)">
             <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:6px">D · 流量不足、低核销率</div>
             <div style="font-size:40px;font-weight:800;color:#ea580c">${qD.count}</div>
-            <div style="font-size:11px;color:#9a3412;margin-top:8px">其中 <b style="font-size:18px;color:#c2410c">${qD.no_exp}</b> 个老客曝光几乎为0 <span style="font-size:9px;color:#c2410c80">（尽曝UV < 5）</span></div>
+            <div style="font-size:11px;color:#9a3412;margin-top:8px">其中 <b style="font-size:18px;color:#c2410c">${qD.no_exp}</b> 个老客曝光几乎为0 <span style="font-size:9px;color:#c2410c80">（尽曝UV < 10）</span></div>
             <div style="font-size:11px;color:#9a3412;margin-top:4px"><b style="font-size:18px;color:#c2410c">${qD.has_exp}</b> 个有老客曝光但核销率低 ${(()=>{const dExp=QR.filter(r=>r.quad==='D'&&r.eur_reliable);if(!dExp.length)return'';const names=dExp.map(b=>b.name).join('、');const detail=dExp.map(b=>'<b>'+b.name+'</b> 尽曝UV:'+Math.round(b.cur_exp)+' 交易:'+b.daily_tx.toLocaleString()+' 核销率:'+(b.cur_e21_eur!=null?b.cur_e21_eur+'%':'—')).join('<br>');return`<span onclick="quadDetail('qd_detail')" style="cursor:pointer;color:var(--b);font-weight:600">（${names} ▾）</span></div><div id="qd_detail" style="display:none;margin-top:6px;font-size:10px;color:var(--x6);background:#fff5ed;padding:8px 10px;border-radius:5px;line-height:1.7">${detail}`})()}</div>
           </div>
           <div style="flex:1;min-width:0;padding:20px 22px;background:#fef2f2;border-radius:0 0 10px 0">
             <div style="font-size:13px;font-weight:700;color:#991b1b;margin-bottom:6px">C · 流量不足、高核销率</div>
             <div style="font-size:40px;font-weight:800;color:#dc2626">${qC.count}</div>
             <div style="font-size:11px;color:#991b1b;margin-top:8px"><b style="font-size:18px;color:#dc2626">${qC.has_exp}</b> 个核销率可信，补流量可存活</div>
-            <div style="font-size:11px;color:#991b1b;margin-top:4px"><b style="font-size:18px;color:#c2410c">${qC.no_exp}</b> 个老客曝光几乎为0 <span style="font-size:9px;color:#c2410c80">（尽曝UV < 5，核销率不可信）</span></div>
+            <div style="font-size:11px;color:#991b1b;margin-top:4px"><b style="font-size:18px;color:#c2410c">${qC.no_exp}</b> 个老客曝光几乎为0 <span style="font-size:9px;color:#c2410c80">（尽曝UV < 10，核销率不可信）</span></div>
           </div>
         </div>
       </div>
@@ -1011,7 +1011,7 @@ function rsop(){
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--o)"></div>
         <div style="font-size:13px;color:var(--x5);font-weight:600;margin-bottom:14px">待验证品牌 <span style="font-size:9px;font-weight:600;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:3px;margin-left:6px">需尽快推动置顶曝光</span></div>
         <div style="font-size:36px;font-weight:800;color:var(--o)">${unreliable}</div>
-        <div style="font-size:12px;color:var(--x6);margin-top:8px;line-height:1.6">日均老客尽曝UV < 5，当前无有效核销数据。<br>需要有老客曝光，才能验证核销率能否达到1%。</div>
+        <div style="font-size:12px;color:var(--x6);margin-top:8px;line-height:1.6">日均老客尽曝UV < 10，当前无有效核销数据。<br>需要有老客曝光，才能验证核销率能否达到1%。</div>
       </div>
     </div>
     <div style="margin-bottom:20px">
@@ -1137,7 +1137,7 @@ function rsop(){
           <div style="display:flex;flex-direction:column;gap:0">
             <div style="${cs};min-height:120px;border:2px solid #c2410c">
               ${topBar('#c2410c')}
-              <div style="font-size:12px;color:var(--x5);margin-bottom:6px">老客尽曝UV < 5</div>
+              <div style="font-size:12px;color:var(--x5);margin-bottom:6px">老客尽曝UV < 10</div>
               <div style="font-size:32px;font-weight:800;color:#c2410c">${ZU.uv_lt5}</div>
               <div style="margin-top:6px"><span style="font-size:9px;font-weight:600;background:#fff7ed;color:#c2410c;padding:2px 6px;border-radius:3px">${ZU.uv_lt5_pct||0}%在待验证${Q.unreliable_count||0}个中，需尽快置顶曝光</span></div>
             </div>
@@ -1145,7 +1145,7 @@ function rsop(){
         </div>`
         +(ZU.fail_brands&&ZU.fail_brands.length?'<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:#b45852;margin-bottom:6px">↓ 四要素不达标（'+ZU.fail_count+'个）→ 待排查四要素 ▾</summary><div class="tw">'+tbl+thBase+'<tbody>'+ZU.fail_brands.map(baseRow).join('')+'</tbody></table></div></details>':'')
         +(ZU.pool_fail_brands&&ZU.pool_fail_brands.length?'<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--o);margin-bottom:6px">↓ 老客基数不够（'+ZU.pool_fail+'个）→ 待确认罗盘规则 ▾</summary><div class="tw">'+tbl+thFlow+'<tbody>'+ZU.pool_fail_brands.map(flowRow).join('')+'</tbody></table></div></details>':'')
-        +(ZU.pool_ok_brands&&ZU.pool_ok_brands.length?'<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:#c2410c;margin-bottom:6px">→ 尽曝UV < 5（'+(ZU.pool_ok||0)+'个）→ 需公线尽快置顶 ▾</summary><div class="tw">'+tbl+thFlow+'<tbody>'+ZU.pool_ok_brands.map(flowRow).join('')+'</tbody></table></div></details>':'');
+        +(ZU.pool_ok_brands&&ZU.pool_ok_brands.length?'<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:#c2410c;margin-bottom:6px">→ 尽曝UV < 10（'+(ZU.pool_ok||0)+'个）→ 需公线尽快置顶 ▾</summary><div class="tw">'+tbl+thFlow+'<tbody>'+ZU.pool_ok_brands.map(flowRow).join('')+'</tbody></table></div></details>':'');
       })()}
     </div>`;
 
